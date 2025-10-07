@@ -989,8 +989,8 @@ def main(args):  # noqa: C901
         else:
             num_training_ranks = len(distributed_context.assigned_training_ranks)
 
-        def scoring_function(training_obj):
-            return 0.0
+        def scoring_function(manager: ReplayBufferManager, training_obj) -> float:
+            return len(manager.replay_buffer) / (len(training_obj) + 1e-5)
 
         replay_buffer_manager = ReplayBufferManager(
             env=env,

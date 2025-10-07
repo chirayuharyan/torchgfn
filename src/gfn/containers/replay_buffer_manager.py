@@ -19,7 +19,9 @@ class ReplayBufferManager:
         env: Env,
         rank: int,
         num_training_ranks: int,
-        scoring_function: Optional[Callable[[object], float]] = None,
+        scoring_function: Optional[
+            Callable[["ReplayBufferManager", object], float]
+        ] = None,
         diverse_replay_buffer: bool = False,
         capacity: int = 10000,
         remote_manager_rank: int | None = None,
@@ -51,9 +53,10 @@ class ReplayBufferManager:
                 remote_buffer_freq=1,
             )
 
-    def default_scoring_function(self, obj) -> float:
+    @staticmethod
+    def default_scoring_function(manager: "ReplayBufferManager", trajectory) -> float:
         """Default score function if none provided"""
-        return float(len(str(obj)) * 0.1)
+        return float(len(str(trajectory)) * 0.1)
 
     def run(self):
         """Runs on remote buffer manager ranks. Waits for training data, computes dummy reward, sends back."""
@@ -63,7 +66,7 @@ class ReplayBufferManager:
             sender_rank, msg, msg_data_len = self._recv_object()
 
             if msg.message_type == MessageType.DATA:
-                score = self.scoring_function(msg.message_data)
+                score = self.scoring_function(self, msg.message_data)
                 score_tensor = torch.tensor([score], dtype=torch.float32)
                 dist.send(score_tensor, dst=sender_rank)
                 self.replay_buffer.add(msg.message_data)
